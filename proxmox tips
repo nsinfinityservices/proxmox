@@ -1,0 +1,182 @@
+Ubuntu 22.04 "Jammy Jellyfish" minimal cloud image download page ➜https://cloud-images.ubuntu.com/minimal/releases/jammy/release/
+
+https://www.youtube.com/watch?v=MJgIm03Jxdo&t=597s
+
+
+in proxmox terminal download the cloud image.
+
+wget https://cloud-images.ubuntu.com/minimal/releases/jammy/release/ubuntu-22.04-minimal-cloudimg-amd64.img
+
+then   do  ,   qm set 900 --serial0 socket --vga serial0
+
+after that renmage the image to extension .qcow2
+ mv  ubuntu-22.04-minimal-cloudimg-amd64.img ubuntu-22.04-minimal-cloudimg-amd64.qcow2
+
+then re-seize the image
+
+qemu-img resize ubuntu-22.04-minimal-cloudimg-amd64.qcow2 32G
+
+them import the disk to proxmox.
+
+qm importdisk 900 ubuntu-22.04-minimal-cloudimg-amd64.qcow2 ZFS-WD-1TB
+
+ZFS-WD-1TB --- nothing but which disk you created during the creation. 
+
+
+few more steps in video ,  boot order and volume add.
+
+
+after that create clone vm , by right click .
+
+once install , install qemu-agent , sudo apt install qemu-guest-agent
+then restart the server
+--====
+
+
+ rsync -ae ssh --progress ./Movies root@192.168.10.157:/srv/dev-disk-by-uuid-bbc422ee-ef83-4362-86ad-61df2987fd26/omvmedia
+
+ rsync -ae ssh --progress root@192.168.10.126:/mnt/smbdata/
+
+
+rsync -avz your-user@your-remote-server.com:/home/user/dir/ /home/user/local-dir/
+
+ rsync -avz --ignore-existing  user@your-remote-server.com:/home/user/dir/
+
+
+
+
+ProxMox Setup for PCIe Passthrough
+
+-Add IOMMU Support-
+
+nano /etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on"
+	- OR -
+GRUB_CMDLINE_LINUX_DEFAULT="quiet amd_iommu=on"
+
+Save file and close
+
+
+
+nano /etc/kernel/cmdline
+Note:  still failing update it here root=ZFS=rpool/ROOT/pve-1 boot=zfs quiet intel_iommu=on
+
+
+update-grub
+
+-Load VFIO modules at boot-
+
+nano /etc/modules
+
+vfio
+vfio_iommu_type1
+vfio_pci
+vfio_virqfd
+
+Save file and close
+
+echo "options vfio_iommu_type1 allow_unsafe_interrupts=1" > /etc/modprobe.d/iommu_unsafe_interrupts.conf
+echo "options kvm ignore_msrs=1" > /etc/modprobe.d/kvm.conf
+
+echo "blacklist nouveau" >> /etc/modprobe.d/blacklist.conf
+echo "blacklist nvidia" >> /etc/modprobe.d/blacklist.conf
+
+-Configure GPU for PCIe Passthrough-
+
+	- Find your GPU
+lspci -v
+
+	- Enter the PCI identifier
+lspci -n -s 82:00
+
+
+root@pve:/tmp# lspci -n -s 03:00
+03:00.0 0300: 10de:0ffa (rev a1)
+03:00.1 0403: 10de:0e1b (rev a1)
+
+
+
+
+01:00.0 0300: 10de:0ffa (rev a1)
+01:00.1 0403: 10de:0e1b (rev a1)
+
+echo "options vfio-pci ids=10de:0ffa,10de:0e1b disable_vga=1"> /etc/modprobe.d/vfio.conf
+
+
+	- Copy the HEX values from your GPU here:
+echo "options vfio-pci ids=####.####,####.#### disable_vga=1"> /etc/modprobe.d/vfio.conf
+
+update-initramfs -u
+
+
+
+GPU passs through
+https://www.youtube.com/watch?v=-HCzLhnNf-A
+--REBOOT--
+
+
+
+
+
+
+
+https://www.youtube.com/watch?v=M3pKprTdNqQ&t=690s
+
+
+ls /dev/disk/by-id
+
+qm set 102 -scsi1 /dev/disk/by-id/ata-HGST_HDN724030ALE640_PK1238P3G08GRB
+
+qm set 102 -scsi1 /dev/disk/by-id/ata-ST500LT012-1DG142_S3P9YHDT
+
+sudo zpool import -a -d /dev/disk/by-id/ata-WDC_WD1005FBYZ-01YCBB2_WD-WMC6M0H401WC -d /dev/disk/by-id/ata-WDC_WD1005FBYZ-01YCBB2_WD-WMC6M0H401WC
+
+
+qm set 103 -scsi1 /dev/disk/by-id/axaxaxaxaxx
+
+adding disks;
+
+sdc                    8:32   0   1.8T  0 disk            ST2000DM001-1CH16 S1E2DHNT
+├─sdc1                 8:33   0     2G  0 part                              
+└─sdc2                 8:34   0   1.8T  0 part                              
+sdd                    8:48   0   2.7T  0 disk            HGST_HDN724030ALE PK1238P3G
+├─sdd1                 8:49   0     2G  0 part                              
+└─sdd2                 8:50   0   2.7T  0 part                              
+
+
+
+qm set 101 -scsi1 /dev/disk/by-id/ata-HGST_HDN724030ALE640_PK1238P3G08GRB
+
+
+Smb Setup
+
+Server
+
+vi /etc/samba/smb.conf
+
+
+test the server 
+
+command:  testparm
+
+
+Client
+//192.168.10.126/Movies /media/share cifs vers=3.0,username=sudhakar,password=mercury13 0 0
+
+
+mount -n 
+or 
+
+sudo mount -t cifs -o user=sudharkar //192.168.10.126/linuxsharename
+
+
+
+
+OMV Extras.
+
+
+wget -O - https://github.com/OpenMediaVault-Plugin-Developers/packages/raw/master/install | bash
+
+
+
+

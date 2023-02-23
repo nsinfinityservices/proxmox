@@ -1,0 +1,11 @@
+go to promox shell 
+create directiory whatever you need
+mkdir /media/movies
+chmod 775 /media/movies
+
+then edit the container or vm   number config .  e.g 103.conf
+nano /etc/pve/local/lxc/103.conf
+   append the below line
+   mp0: /media/movies/, mp=/media/movies
+   then restart the lxc container or vm machine 
+   
